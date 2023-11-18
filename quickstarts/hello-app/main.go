@@ -19,35 +19,71 @@
 package main
 
 import (
-	"fmt"
-	"log"
+	"html/template"
 	"net/http"
-	"os"
 )
 
-func main() {
-	// register hello function to handle all requests
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", hello)
-
-	// use PORT environment variable, or default to 8080
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-
-	// start the web server on port and accept requests
-	log.Printf("Server listening on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, mux))
+// Product representa un producto en el catálogo.
+type Product struct {
+	Name  string
+	Price float64
 }
 
-// hello responds to the request with a plain-text "Hello, world" message.
-func hello(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Serving request: %s", r.URL.Path)
-	host, _ := os.Hostname()
-	fmt.Fprintf(w, "Docker de Santiago Chica y Sebastian Castro\n")
-	fmt.Fprintf(w, "Version: 9.9.9\n")
-	fmt.Fprintf(w, "Hostname: %s\n", host)
+// Catalog representa el catálogo de productos.
+var Catalog = []Product{
+	{"Producto 1", 19.99},
+	{"Producto 2", 29.99},
+	{"Producto 3", 39.99},
+}
+
+// IndexHandler maneja las solicitudes a la página de inicio.
+func IndexHandler(w http.ResponseWriter, r *http.Request) {
+	// Renderizar la página de inicio con la lista de productos.
+	tmpl, err := template.New("index").Parse(`
+		<!DOCTYPE html>
+		<html>
+		<head>
+			<title>Web E-Commerce</title>
+		</head>
+		<body>
+			<h1>Bienvenido a nuestra tienda en línea</h1>
+			<h2>Productos disponibles:</h2>
+			<ul>
+				{{range .}}
+					<li>{{.Name}} - ${{.Price}}</li>
+				{{end}}
+			</ul>
+		</body>
+		</html>
+	`)
+	if err != nil {
+		http.Error(w, "Error al procesar la plantilla", http.StatusInternalServerError)
+		return
+	}
+
+	err = tmpl.Execute(w, Catalog)
+	if err != nil {
+		http.Error(w, "Error al renderizar la página", http.StatusInternalServerError)
+	}
+}
+
+func main() {
+	// Manejadores de ruta
+	http.HandleFunc("/", IndexHandler)
+
+	// Configuración del servidor y escucha
+	port := ":8080"
+	server := &http.Server{
+		Addr:    port,
+		Handler: nil,
+	}
+
+	// Iniciar el servidor
+	println("Servidor web en ejecución en http://localhost" + port)
+	err := server.ListenAndServe()
+	if err != nil {
+		panic(err)
+	}
 }
 
 // [END container_hello_app]
